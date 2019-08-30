@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 
 class ThreadedBatcher(ABC):
     
-    def __init__(self, num_enqueueing_threads=2):
+    def __init__(self, num_enqueueing_threads=2, max_queue_size=10):
         self._num_enqueueing_threads = num_enqueueing_threads
         
-        self._batch_queue = Queue(maxsize=10) # FIXME - maxsize should be a param
+        self._batch_queue = Queue(maxsize=max_queue_size)
         
         # This lock is used to ensure that only one consumer is dequeue-ing at any one time.
         self._iteration_lock = Lock()
