@@ -5,27 +5,34 @@ from abc import ABC, abstractmethod
 class ThreadedBatcher(ABC):
     
     def __init__(self, num_enqueueing_threads=2):
-        self._num_batches_remaining = 10
+        self._num_enqueueing_threads = num_enqueueing_threads
         
         self._batch_queue = Queue(maxsize=10) # FIXME - maxsize should be a param
-        
-        # Have we run out of data to enqueue?
-        # If this variable is True, AND the Queue is empty, then we're done.
-        self._data_exhausted = False
-        
-        self._next_batch_ready = False
         
         # This lock is used to ensure that only one consumer is dequeue-ing at any one time.
         self._iteration_lock = Lock()
         
         # This lock is used to ensure that only one thread is being assigned it batch params at any one time.
         self._batch_params_lock = Lock()
+
+    def _reset_iteration(self):
+        """
+        Reset the iteration of batching parameters, and restart threads.
+        """
+        # Have we run out of data to enqueue?
+        # If this variable is True, AND the Queue is empty, then we're done.
+        self._data_exhausted = False
+
+        # Need to reset this so that fresh params are delivered.
+        self._reset_batch_params()
+
         self._queueing_threads = [Thread(target=self._enqueue, args=(), daemon=True)
-                                  for _ in range(num_enqueueing_threads)]
+                                  for _ in range(self._num_enqueueing_threads)]
         for thread in self._queueing_threads:
             thread.start()
             
     def __iter__(self):
+        self._reset_iteration()
         while True:
             try:
                 yield self._next()
@@ -46,6 +53,10 @@ class ThreadedBatcher(ABC):
                 except Empty:
                     # Finished the iterator
                     raise StopIteration
+
+    @abstractmethod
+    def _reset_batch_params(self):
+        raise NotImplementedError
 
     @abstractmethod
     def _get_next_batch_params(self):
