@@ -1,11 +1,17 @@
 from queue import Queue, Empty
 from threading import Lock, Thread
 from abc import ABC, abstractmethod
+from typing import Callable, Iterable
 
-class ThreadedSource(ABC):
+class ThreadedSource:
 
-    def __init__(self, num_enqueueing_threads=2, max_queue_size=10):
+    def __init__(self,
+                 get_params_iterator: Callable[[], Iterable],
+                 get_item_from_params: Callable,
+                 num_enqueueing_threads=2, max_queue_size=10):
         self._num_enqueueing_threads = num_enqueueing_threads
+        self._get_params_iterator = get_params_iterator
+        self._get_item_from_params = get_item_from_params
     
         self._batch_queue = Queue(maxsize=max_queue_size)
 
@@ -21,10 +27,10 @@ class ThreadedSource(ABC):
         """
         # Have we run out of data to enqueue?
         # If this variable is True, AND the Queue is empty, then we're done.
-        self._data_exhausted = False
+        self._iterator_exhausted = False
 
         # Need to reset this so that fresh params are delivered.
-        self._reset_batch_params()
+        self._iterator = iter(self._get_params_iterator())
 
         self._queueing_threads = [Thread(target=self._enqueue, args=(), daemon=True)
                                   for _ in range(self._num_enqueueing_threads)]
@@ -39,9 +45,10 @@ class ThreadedSource(ABC):
             except StopIteration:
                 break
 
+    # Don't need __next__, since the __iter__ generator supplies that.
     def _next(self):
         with self._iteration_lock: # Ensure that we are the only thread running this function
-            if self._data_exhausted is False:
+            if self._iterator_exhausted is False:
                 # If we get here, there is still data to enqueue.
                 # We can safely wait for the queue to be ready, since we are the only thing dequeueing.
                 return self._batch_queue.get(block=True, timeout=None)
@@ -54,29 +61,17 @@ class ThreadedSource(ABC):
                     # Finished the iterator
                     raise StopIteration
 
-    @abstractmethod
-    def _reset_batch_params(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def _get_next_batch_params(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def _get_batch_from_params(self, params):
-        raise NotImplementedError
-
     def _enqueue(self):
         """
         Function that gets run its own thread.
         Continues running until we run out of batches.
         """
-        while self._data_exhausted is False:
-            with self._batch_params_lock:
-                batch_params = self._get_next_batch_params()
-            if batch_params is None:
-                self._data_exhausted = True
-            else:
-                this_batch = self._get_batch_from_params(batch_params)
-                self._batch_queue.put(this_batch, block=True, timeout=None)
+        while self._iterator_exhausted is False:
+            try:
+                with self._batch_params_lock:
+                    params = next(self._iterator)
+                x = self._get_item_from_params(params)
+                self._batch_queue.put(x, block=True, timeout=None)
+            except StopIteration:
+                self._iterator_exhausted = True
 
