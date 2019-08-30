@@ -30,7 +30,7 @@ class ThreadedBatcher(ABC):
             try:
                 yield self._next()
             except StopIteration:
-                pass
+                break
         
     def _next(self):
         with self._iteration_lock: # Ensure that we are the only thread running this function
