@@ -2,6 +2,7 @@ from queue import Queue, Empty
 from threading import Lock, Thread
 from typing import Callable, Iterable
 
+
 class ThreadedSource:
 
     def __init__(self,
@@ -46,7 +47,7 @@ class ThreadedSource:
 
     # Don't need __next__, since the __iter__ generator supplies that.
     def _next(self):
-        with self._iteration_lock: # Ensure that we are the only thread running this function
+        with self._iteration_lock:  # Ensure that we are the only thread running this function
             if self._iterator_exhausted is False:
                 # If we get here, there is still data to enqueue.
                 # We can safely wait for the queue to be ready, since we are the only thing dequeueing.
