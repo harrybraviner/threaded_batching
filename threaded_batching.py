@@ -61,8 +61,6 @@ class ThreadedBatcher(ABC):
     @abstractmethod
     def _get_next_batch_params(self):
         raise NotImplementedError
-        
-    # FIXME - need some way to reset the params iteration
     
     @abstractmethod
     def _get_batch_from_params(self, params):
