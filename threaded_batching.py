@@ -2,8 +2,6 @@ from queue import Queue, Empty
 from threading import Lock, Thread
 from abc import ABC, abstractmethod
 
-import logging
-
 class ThreadedBatcher(ABC):
     
     def __init__(self, num_enqueueing_threads=2):
@@ -64,11 +62,9 @@ class ThreadedBatcher(ABC):
         Function that gets run its own thread.
         Continues running until we run out of batches.
         """
-        logging.info('foo')
         while self._data_exhausted is False:
             with self._batch_params_lock:
                 batch_params = self._get_next_batch_params()
-                print('Got params: {}'.format(batch_params))
             if batch_params is None:
                 self._data_exhausted = True
             else:
