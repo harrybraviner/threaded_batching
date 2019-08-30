@@ -1,6 +1,5 @@
 from queue import Queue, Empty
 from threading import Lock, Thread
-from abc import ABC, abstractmethod
 from typing import Callable, Iterable
 
 class ThreadedSource:
